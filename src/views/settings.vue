@@ -60,7 +60,6 @@
 <script>
 export default {
   name: "Settings",
-
   data() {
     const createItems = (v) =>
       v
@@ -69,13 +68,11 @@ export default {
         .filter((v) => v.length !== 0);
     const itemMaxLength = (v) =>
       createItems(v).reduce((a, c) => Math.max(a, c.length), 0);
-
     return {
       /** 入力したデータが有効かどうか */
       valid: false,
       /** 設定 */
       settings: { ...this.$store.state.settings },
-
       /** バリデーションルール */
       appNameRule: (v) => v.length <= 30 || "30文字以内で入力してください",
       stringRule: (v) => v.length <= 150 || "150文字以内で入力してください",
@@ -88,7 +85,6 @@ export default {
         itemMaxLength(v) <= 4 || "各タグは4文字以内で入力してください",
     };
   },
-
   methods: {
     /** 保存ボタンがクリックされたとき */
     onClickSave() {

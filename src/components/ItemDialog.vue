@@ -1,5 +1,5 @@
 <template>
-  <!-- データ追加／編集ダイアログ -->
+  <!-- 追加／編集ダイアログ -->
   <v-dialog v-model="show" scrollable persistent max-width="500px" eager>
     <v-card>
       <v-card-title>{{ titleText }}</v-card-title>
@@ -120,7 +120,6 @@
 import { mapActions, mapGetters, mapState } from "vuex";
 export default {
   name: "ItemDialog",
-
   data() {
     return {
       /** ダイアログの表示状態 */
@@ -129,7 +128,6 @@ export default {
       valid: false,
       /** 日付選択メニューの表示状態 */
       menu: false,
-
       /** 操作タイプ 'add' or 'edit' */
       actionType: "add",
       /** id */
@@ -148,17 +146,10 @@ export default {
       amount: 0,
       /** メモ */
       memo: "",
-
-      /** 収支カテゴリ一覧 */
-      incomeItems: ["カテ1", "カテ2"],
-      outgoItems: ["カテ3", "カテ4"],
-      /** 選択カテゴリ一覧 */
+      /** 選択可能カテゴリ一覧 */
       categoryItems: [],
-      /** タグリスト */
-      tagItems: ["タグ1", "タグ2"],
       /** 編集前の年月（編集時に使う） */
       beforeYM: "",
-
       /** バリデーションルール */
       titleRules: [
         (v) => v.trim().length > 0 || "タイトルは必須です",
@@ -172,8 +163,18 @@ export default {
       memoRule: (v) => v.length <= 50 || "メモは50文字以内で入力してください",
     };
   },
-
   computed: {
+    ...mapGetters([
+      /** 収支カテゴリ */
+      "incomeItems",
+      "outgoItems",
+      /** タグ */
+      "tagItems",
+    ]),
+    ...mapState({
+      /** ローディング状態 */
+      loading: (state) => state.loading.add || state.loading.update,
+    }),
     /** ダイアログのタイトル */
     titleText() {
       return this.actionType === "add" ? "データ追加" : "データ編集";
@@ -182,14 +183,14 @@ export default {
     actionText() {
       return this.actionType === "add" ? "追加" : "更新";
     },
-
-    ...mapState({
-      /** ローディング状態 */
-      loading: (state) => state.loading.add || state.loading.update,
-    }),
   },
-
   methods: {
+    ...mapActions([
+      /** データ追加 */
+      "addAbData",
+      /** データ更新 */
+      "updateAbData",
+    ]),
     /**
      * ダイアログを表示します。
      * このメソッドは親から呼び出されます。
@@ -198,7 +199,6 @@ export default {
       this.show = true;
       this.actionType = actionType;
       this.resetForm(item);
-
       if (actionType === "edit") {
         this.beforeYM = item.date.slice(0, 7);
       }
@@ -219,17 +219,14 @@ export default {
         outgo: null,
       };
       item[this.inout] = this.amount || 0;
-
       if (this.actionType === "add") {
         await this.addAbData({ item });
       } else {
         item.id = this.id;
         await this.updateAbData({ beforeYM: this.beforeYM, item });
       }
-
       this.show = false;
     },
-
     /** 収支が切り替わったとき */
     onChangeInout() {
       if (this.inout === "income") {
@@ -245,12 +242,10 @@ export default {
       const year = today.getFullYear();
       const month = ("0" + (today.getMonth() + 1)).slice(-2);
       const date = ("0" + today.getDate()).slice(-2);
-
       this.id = item.id || "";
       this.date = item.date || `${year}-${month}-${date}`;
       this.title = item.title || "";
       this.inout = item.income != null ? "income" : "outgo";
-
       if (this.inout === "income") {
         this.categoryItems = this.incomeItems;
         this.amount = item.income || 0;
@@ -258,11 +253,9 @@ export default {
         this.categoryItems = this.outgoItems;
         this.amount = item.outgo || 0;
       }
-
       this.category = item.category || this.categoryItems[0];
       this.tags = item.tags ? item.tags.split(",") : [];
       this.memo = item.memo || "";
-
       this.$refs.form.resetValidation();
     },
   },

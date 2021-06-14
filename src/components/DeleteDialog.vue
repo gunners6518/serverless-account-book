@@ -23,7 +23,6 @@
 import { mapActions, mapState } from "vuex";
 export default {
   name: "DeleteDialog",
-
   data() {
     return {
       /** ダイアログの表示状態 */
@@ -32,13 +31,15 @@ export default {
       item: {},
     };
   },
-
   computed: mapState({
     /** ローディング状態 */
     loading: (state) => state.loading.delete,
   }),
-
   methods: {
+    ...mapActions([
+      /** データ削除 */
+      "deleteAbData",
+    ]),
     /**
      * ダイアログを表示します。
      * このメソッドは親から呼び出されます。
@@ -56,42 +57,6 @@ export default {
     async onClickDelete() {
       await this.deleteAbData({ item: this.item });
       this.show = false;
-    },
-  },
-};
-</script>
-<script>
-export default {
-  name: "DeleteDialog",
-
-  data() {
-    return {
-      /** ダイアログの表示状態 */
-      show: false,
-      /** ローディング状態 */
-      loading: false,
-      /** 受け取ったデータ */
-      item: {},
-    };
-  },
-
-  methods: {
-    /**
-     * ダイアログを表示します。
-     * このメソッドは親から呼び出されます。
-     */
-
-    open(item) {
-      this.show = true;
-      this.item = item;
-    },
-    /** キャンセルがクリックされたとき */
-    onClickClose() {
-      this.show = false;
-    },
-    /** 削除がクリックされたとき */
-    onClickDelete() {
-      // あとで実装
     },
   },
 };
