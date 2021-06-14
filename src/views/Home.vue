@@ -2,9 +2,9 @@
   <div>
     <v-card>
       <v-card-title>
-        <!-- 月選択 -->
+        <!-- 月選択メニュー -->
         <v-col cols="8">
-          <v-menu 
+          <v-menu
             ref="menu"
             v-model="menu"
             :close-on-content-click="false"
@@ -26,21 +26,21 @@
             <v-date-picker
               v-model="yearMonth"
               type="month"
-              color="green"
+              color="primary"
               locale="ja-jp"
               no-title
               scrollable
             >
-              <v-spacer/>
+              <v-spacer />
               <v-btn text color="grey" @click="menu = false">キャンセル</v-btn>
-              <v-btn text color="primary" @click="$refs.menu.save(yearMonth)">選択</v-btn>
+              <v-btn text color="primary" @click="onSelectMonth">選択</v-btn>
             </v-date-picker>
           </v-menu>
         </v-col>
-        <v-spacer/>
+        <v-spacer />
         <!-- 追加ボタン -->
         <v-col class="text-right" cols="4">
-          <v-btn dark color="green">
+          <v-btn dark color="primary" @click="onClickAdd">
             <v-icon>mdi-plus</v-icon>
           </v-btn>
         </v-col>
@@ -68,56 +68,151 @@
         :items-per-page="30"
         mobile-breakpoint="0"
       >
+        <!-- 日付列 -->
+        <template v-slot:[`item.date`]="{ item }">
+          {{ parseInt(item.date.slice(-2)) + "日" }}
+        </template>
+        <!-- タグ列 -->
+        <template v-slot:[`item.tags`]="{ item }">
+          <div v-if="item.tags">
+            <v-chip
+              class="mr-2"
+              v-for="(tag, i) in item.tags.split(',')"
+              :key="i"
+            >
+              {{ tag }}
+            </v-chip>
+          </div>
+        </template>
+        <!-- 収入列 -->
+        <template v-slot:[`item.income`]="{ item }">
+          {{ separate(item.income) }}
+        </template>
+        <!-- タグ列 -->
+        <template v-slot:[`item.outgo`]="{ item }">
+          {{ separate(item.outgo) }}
+        </template>
+        <!-- 操作列 -->
+        <template v-slot:[`item.actions`]="{ item }">
+          <v-icon class="mr-2" @click="onClickEdit(item)">mdi-pencil</v-icon>
+          <v-icon @click="onClickDelete(item)">mdi-delete</v-icon>
+        </template>
       </v-data-table>
     </v-card>
+    <!-- 追加／編集ダイアログ -->
+    <ItemDialog ref="itemDialog" />
+    <!-- 削除ダイアログ -->
+    <DeleteDialog ref="deleteDialog" />
   </div>
 </template>
 <script>
-export default {
-  name: 'Home',
+import ItemDialog from "../components/ItemDialog.vue";
+import DeleteDialog from "../components/DeleteDialog.vue";
+import { mapState, mapActions } from "vuex";
 
-  data () {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = ('0' + (today.getMonth() + 1)).slice(-2)
+export default {
+  name: "Home",
+  components: {
+    ItemDialog,
+    DeleteDialog,
+  },
+
+  data() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = ("0" + (today.getMonth() + 1)).slice(-2);
 
     return {
-      /** ローディング状態 */
-      loading: false,
       /** 月選択メニューの状態 */
       menu: false,
       /** 検索文字 */
-      search: '',
+      search: "",
       /** 選択年月 */
       yearMonth: `${year}-${month}`,
       /** テーブルに表示させるデータ */
-      tableData: [
-        /** サンプルデータ */
-        { id: 'a34109ed', date: '2020-06-01', title: '支出サンプル', category: '買い物', tags: 'タグ1', income: null, outgo: 2000, memo: 'メモ' },
-        { id: '7c8fa764', date: '2020-06-02', title: '収入サンプル', category: '給料', tags:'タグ1,タグ2', income: 2000, outgo: null, memo: 'メモ' }
-      ]
-    }
+      tableData: [],
+    };
   },
 
   computed: {
+    ...mapState({
+      /** 家計簿データ */
+      abData: (state) => state.abData,
+      /** ローディング状態 */
+      loading: (state) => state.loading.fetch,
+    }),
+
     /** テーブルのヘッダー設定 */
-    tableHeaders () {
+    tableHeaders() {
       return [
-        { text: '日付', value: 'date', align: 'end' },
-        { text: 'タイトル', value: 'title', sortable: false },
-        { text: 'カテゴリ', value: 'category', sortable: false },
-        { text: 'タグ', value: 'tags', sortable: false },
-        { text: '収入', value: 'income', align: 'end' },
-        { text: '支出', value: 'outgo', align: 'end' },
-        { text: 'メモ', value: 'memo', sortable: false },
-        { text: '操作', value: 'actions', sortable: false }
-      ]
+        { text: "日付", value: "date", align: "end" },
+        { text: "タイトル", value: "title", sortable: false },
+        { text: "カテゴリ", value: "category", sortable: false },
+        { text: "タグ", value: "tags", sortable: false },
+        { text: "収入", value: "income", align: "end" },
+        { text: "支出", value: "outgo", align: "end" },
+        { text: "メモ", value: "memo", sortable: false },
+        { text: "操作", value: "actions", sortable: false },
+      ];
     },
 
     /** テーブルのフッター設定 */
-    footerProps () {
-      return { itemsPerPageText: '', itemsPerPageOptions: [] }
-    }
-  }
-}
+    footerProps() {
+      return { itemsPerPageText: "", itemsPerPageOptions: [] };
+    },
+  },
+  methods: {
+    ...mapActions([
+      /** 家計簿データを取得 */
+      "fetchAbData",
+    ]),
+
+    /** 表示させるデータを更新します */
+    async updateTable() {
+      const yearMonth = this.yearMonth;
+      const list = this.abData[yearMonth];
+
+      if (list) {
+        this.tableData = list;
+      } else {
+        await this.fetchAbData({ yearMonth });
+        this.tableData = this.abData[yearMonth];
+      }
+    },
+
+    /** 月選択ボタンがクリックされたとき */
+    onSelectMonth() {
+      this.$refs.menu.save(this.yearMonth);
+      this.updateTable();
+    },
+
+    /**
+     * 数字を3桁区切りにして返します。
+     * 受け取った数が null のときは null を返します。
+     */
+    separate(num) {
+      return num !== null
+        ? num.toString().replace(/(\d)(?=(\d{3})+$)/g, "$1,")
+        : null;
+    },
+
+    /** 追加ボタンがクリックされたとき */
+    onClickAdd() {
+      this.$refs.itemDialog.open("add");
+    },
+    /** 編集ボタンがクリックされたとき */
+    onClickEdit(item) {
+      this.$refs.itemDialog.open("edit", item);
+    },
+
+    /** 削除ボタンがクリックされたとき */
+    onClickDelete(item) {
+      this.$refs.deleteDialog.open(item);
+    },
+  },
+
+  created() {
+    this.updateTable();
+  },
+};
 </script>
